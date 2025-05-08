@@ -1,13 +1,35 @@
 // Handles payment transactions and processing: initiate a payment and verify payment status
+
 const express = require('express');
 const router = express.Router();
-const paymentController = require('../controllers/payment.controller');
-const cacheMiddleware = require('../middleware/redis.cache');
- 
-router.get('/health', (req, res) => {
-    res.json({ message: 'Payment route is working', status: 'OK'});
-});
-router.get('/', cacheMiddleware('payments'), paymentController.getPayments);
-router.get('/:id', cacheMiddleware('payment'), paymentController.getPaymentById);
+const PaymentController = require('../controllers/payment.controller');
+const paymentMiddleware = require('../middleware/payment.middleware');
+const authMiddleware = require('../middleware/auth.middleware')
 
-module.exports = router;  
+// Apply authentication to all payment routes
+router.use(authMiddleware.protect);
+
+// Customer payment endpoints
+router.post(
+    '/initiate',
+    authMiddleware.restrictTo('customer'),
+    paymentMiddleware.validatePaymentInitiation,
+    PaymentController.initiatePayment
+);
+
+router.get(
+    '/:id',
+    paymentMiddleware.checkPaymentExists,
+    paymentMiddleware.validatePaymentInitiation,
+    PaymentController.getPaymentDetails
+);
+
+// Admin endpoints
+router.get(
+    '/refund',
+    authMiddleware.restrictTo('admin'),
+    paymentMiddleware.validateRefundRequest,
+    PaymentController.processRefunds
+);
+
+module.exports = router;

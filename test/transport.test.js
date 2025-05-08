@@ -1,51 +1,100 @@
-//transport tests
-//listing availalbe transport and fetching transport details
+/**
+ * @ransport test
+ */
+
 const request = require('supertest');
 const app = require('../app/app');
-const connectDB = require('../config/db');
 const mongoose = require('mongoose');
-const TransportModel = require('../models/transport.model');
-jest.setTimeout(30000); // Set to 20 seconds to be safe
+const Transport = require('../models/transport.model');
+const User = require('../models/user.model');
+const { transportTypes, transportStatus } = require('../constants/transport.enum');
 
-  
 describe('Transport API', () => {
-     let testTransportId;
-     let testDriverId;
- 
-     beforeAll(async () => {
-        await connectDB();
+    let adminToken, driverToken, transportId;
 
-        const transport = await TransportModel.create({
-            vehicleNumber: 'ABC123',
-            driverId: new mongoose.Types.ObjectId(),
-            capacity: 4,
-            status: 'available',
-            availability: ['available', 'en-route', 'not-available']
-            // whatever is defined in models is whats supposed to be in test and the real thing. 
+    beforeAll(async () => {
+        // create test admin
+        await User.create({
+            name: 'Admin',
+            email: 'transport.admin@test.com',
+            password: 'password123',
+            role: 'admin'
         });
-        testTransportId = transport._id;
-        testDriverId = transport.driverId;
+
+        // create test driver
+        const driver = await User.create({ 
+            name: 'Transport driver',
+            email: 'transport.driver@test.com',
+            passowrd: 'password123',
+            role: 'driver'
+        });
+
+        // create test transport
+        const transport = await Transport.create({
+            vehicleNumber: 'ABC123',
+            type: transportTypes.VAN,
+            make: 'Toyota',
+            model: 'Hiace',
+            capacity: { weight: 100, volume: 10 },
+            status: transportSchema.AVAILABLE
+        });
+
+        transportId = transport._id;
+
+        // Mocj tokens
+        adminToken = 'mock-admin-token';
+        driverTken: 'mock-driver-token';
     });
 
-        test('Should return all available transport options', async () => {
-            const res = await request(app).get('/api/v1/transport');
-            expect(res.statusCode).toBe(200);
-            expect(Array.isArray(res.body)).toBe(true);
-            expect(res.body.totalPages).toBeGreaterThan(0);
-            expect(res.body.currentPage).toBe(1);
-        })
+    describe('POST /api/v1/transport', () => {
+        test('Should create a new transport (admin)', async () => {
+            const res = await request(app)
+            .post('/api/v1/transport')
+            .set('Authorization', `Bearer ${adminToken}`)
+            .send({
+                vehicleNumber: 'TEST0002',
+                Type: transportTypes.TRUCK,
+                make: 'Isuzu',
+                model: 'NPR',
+                capacity: { weight: 5000, volume: 20 }
+            });
 
-        test('Should return details of a specific transport option', async () => {
-            const res = await request(app).get(`/api/v1/transport/${testTransportId}`);
-            expect(res.statusCode).toBe(200);
-            expect(res.body).toHaveProperty('vehicelNumber');
-            expect(res.body).toHaveProperty('capacity');
-            expect(res.body).toHaveProperty('status');
-            expect(Res.body.driverId).toBeDefined();
+            expect(res.statusCode).toBe(201);
+            expect(res.body.success).toBe(true);
+            expect(res.body.data.vehicleNumber).toBe('TEST0002');
         });
+    });
 
-        afterAll(async () => {
-            await TransportModel.deleteMany({});
-            await mongoose.connection.close();
+    describe('GET /api/v1/transport', () => {
+        test('Should get all transports', async () => {
+            const res = await request(app)
+                  .get('/api/v1/transport')
+                  .get('Authorization', `Bearer ${adminToken}`)
+
+                  expect(res.statusCode).toBe(200);
+                  expect(res.body.success).toBe(true);
+                  expect(res.body.data.length).toBeGreaterThan(0);
         });
-     });
+    });
+
+    describe('GET /api/v1/transport/:id', () => {
+        test('Should update transport (admin)', async () => {
+            const res = await request(app)
+                  .patch(`/api/v1/transport/${transportId}`)
+                  .set('Authorization', `Bearer ${adminToken}`)
+                  .send({
+                      status: transportStatus.RESERVED
+                  });
+
+            expect(res.statusCode).toBe(200);
+            expect(res.body.success).toBe(true);
+            expect(res.body.data.status).toBe(transportStatus.RESERVED);
+        });
+    });
+
+    afterAll(async () => {
+        await Transport.deleteMany();
+        await User.deleteMany();
+        await mongoose.connection.close();
+    });
+});

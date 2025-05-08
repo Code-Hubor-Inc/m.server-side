@@ -1,43 +1,52 @@
-//Manages transport booking operations: Creating booking, View user booking, cancel a booking
-const express =require('express'); 
+const express = require('express');
 const router = express.Router();
-const bookingController = require('../controllers/booking.controller');
-// const cacheMiddleware = require('../middleware/redis.cache');
+const BookingController = require('../controllers/booking.controller');
+const authMiddleware = require('../middleware/auth.middleware');
+const bookingMiddleware = require('../middleware/booking.middleware');
 
-router.get('/api/booking', async (req, res) => {
-    try {
-        const bookings = await bookingController.getBookings();
-        res.status(200).json(bookings);
-    } catch (error) {
-        res.status(500).json({ error: 'Error fetching bookings' });
-    }
-}); 
-router.get('/:id', async (req, res) => {
-    try {
-        const booking = await bookingController.getBookingById(req.params.id);
-        if (booking) {
-            res.status(200).json(booking);
-        } else {
-            res.status(404).json({ message: 'Booking not found' });
-        }
-    } catch (error) {
-        res.status(500).json({ error: 'Error fetching booking' });
-    }
-});
+// Apply authentication middlware to all booking routes
+router.use(authMiddleware.protect);
 
-router.post('/', async (req, res) => {
-    try {
-        const newBooking = await bookingController.createBooking(req.body);
-        res.status(201).json(newBooking);
-    } catch (error) {
-        res.status(400).json({ error: 'Error creating booking' });
-    }
-});
-// router.get('/health', (req, res) => {
-//     res.json({ message: 'Booking route is working', status: 'OK'});
-// });
-// router.get('/', cacheMiddleware('bookings'), bookingController.getBookings);
-// router.get('/:id', cacheMiddleware('booking'), bookingController.getBookingById);
-// router.post('/', bookingController.createBooking); 
+// create a booking
+router.post(
+    '/',
+    authMiddleware.restrictTo('customer'),
+    bookingMiddleware.validateCreateBooking,
+    BookingController.createBooking
+);
 
-module.exports = router; 
+// get all bookings (with filters)
+router.get(
+    '/',
+    authMiddleware.restrictTo('admin', 'driver'),
+    BookingController.getBookings //small change
+);
+
+// get user's own bookings
+router.get(
+    '/my-bookings/:id',
+    authMiddleware.restrictTo('customer'),
+    (req, res, next) => {
+        req.query.user = req.user._id;
+        next();
+    },
+    BookingController.getBookings
+);
+
+// get single booking
+router.get(
+    '/:id',
+    bookingMiddleware.checkBookingExists,
+    bookingMiddleware.authorizeBookingAccess,
+    BookingController.getBooking
+);
+
+// updating booking status
+router.patch(
+    '/:id/status',
+    authMiddleware.restrictTo('admin', 'driver'),
+    bookingMiddleware.checkBookingExists,
+    BookingController.updateBookingStatus
+);
+
+module.exports = router;

@@ -8,17 +8,19 @@
     "dev": "nodemon server.js"
   },
   "keywords": [],
-  "author": "",
+  "author": "Faraj Omar",
   "license": "ISC",
   "dependencies": {
     "axios": "^1.7.8",
     "bcrypt": "^5.1.1",
     "bcryptjs": "^2.4.3",
     "body-parser": "^1.20.2",
-    "cookie-parser": "^1.4.6",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "express-validator": "^7.2.1",
     "joi": "^17.13.3",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.10.1",
@@ -28,11 +30,20 @@
     "winston": "^3.17.0"
   },
   "devDependencies": {
-    "jest": {
-      "setupFilesAfterEnv": ["<rootDir>/utils/jest.setup.js"]
-    },
+    "jest": "^29.7.0",
     "nodemon": "^3.1.4",
     "supertest": "^7.0.0"
   },
-  "description": ""
+  "description": "mzazi-transprt",
+  "directories": {
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Code-Hubor-Inc/server-side.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Code-Hubor-Inc/server-side/issues"
+  },
+  "homepage": "https://github.com/Code-Hubor-Inc/server-side#readme"
 }

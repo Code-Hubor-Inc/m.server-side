@@ -1,22 +1,28 @@
-//Manages user related operations: Get user profile, Update user profile, Delete user account
+/**
+ * Manages user related operations: Get user profile, Update user profile, delete account
+ * 
+ */
+ 
 const express = require('express');
-// const verifyToken = require('../middleware/auth.middleware'); //originally was like this { verifyToken }.
-const { authMiddleware, restrictTo } = require('../middleware/auth.middleware'); 
 const router = express.Router();
-const userController = require('../controllers/user.controller');
-const cacheMiddleware = require('../middleware/redis.cache');
-const { getUserById, getAllUsers, createUser, updateUser, deleteUser } = require('../controllers/user.controller'); 
-const User = require('../models/user.model');
+const UserController = require('../controllers/user.controller');
+const authMiddleware = require('../middleware/auth.middleware');
+const userMiddleware = require('../middleware/user.middleware');
 
-// Routes
-router.get('/user/:id', authMiddleware, restrictTo('admin'), getUserById);
-router.get('/users', authMiddleware, restrictTo('admin'), getAllUsers);
-router.post('/user', authMiddleware, restrictTo('admin'), createUser);
-router.put('/user/:id', authMiddleware, restrictTo('admin'), updateUser);
-router.delete('/user/:id', authMiddleware, restrictTo('admin'), deleteUser);
+router.use(authMiddleware.protect);
 
-// caching and middleware caching
-router.get('/', cacheMiddleware('users'), userController.getAllUsers);
-router.get('/:id', cacheMiddleware('user'), userController.getUserById);
+router.get('/me', UserController.getMe);
+router.patch('/update-me', UserController.updateMe);
+router.delete('/deactivate-me', UserController.deactivateMe);
 
-module.exports = router; 
+// Admin only routes
+router.use(authMiddleware.restrictTo('admin'));
+
+
+router.get('/', UserController.getAllUsers);
+router.get('/create-user', UserController.createUser);
+router.get('/:id', userMiddleware.checkUserExists, UserController.getUserById);
+router.patch('/:id', userMiddleware.checkUserExists, userMiddleware.validateUserUpdate, UserController.updateUser);
+router.delete('/:id', userMiddleware.checkUserExists, UserController.deleteUser);
+
+module.exports = router;

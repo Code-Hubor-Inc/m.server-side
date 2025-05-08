@@ -3,13 +3,13 @@ const express = require('express');
 const cors = require('cors');
 const connectDB = require('./config/db');
 const indexRouter = require('./routes/index.routes');
-
+  
 const app = express();
 const corsOptions = { origin: 'http://localhost:3000'};
-
-// middlwares
+ 
+// essential middlware first.
 app.use(cors(corsOptions));
-app.use(express.json());
+app.use(express.json()); // for pasrsing application/json
 
 // centralized routes management 
 app.use(indexRouter);

@@ -1,13 +1,35 @@
-//Handles tracking of transport and parcel deliveries: getting real-time tracking data and updating tracking status
+/**
+ * tracking routes
+ */
+
 const express = require('express');
 const router = express.Router();
 const trackingController = require('../controllers/tracking.controller');
-const cacheMiddleware = require('../middleware/redis.cache');
- 
-router.get('/health', (req, res) => {
-    res.json({ message: 'Tracking service is up and running', status: 'OK' });
-});
-router.get('/', cacheMiddleware('tracks'), trackingController.getTracks);
-router.get('/:id', cacheMiddleware('track'), trackingController.getTrackById);
+const trackingMiddleware = require('../middleware/tracking.middleware');
+const authMiddleware = require('../middleware/auth.middleware');
 
-module.exports = router; 
+// Apply authentication to all tracking routes
+router.use(authMiddleware.protect);
+
+// Driver/Admin endpounts
+router.post(
+    '/',
+    authMiddleware.restrictTo('admin', 'driver'),
+    trackingMiddleware.validateTrackingEvent,
+    trackingController.createTrackingEvent
+);
+
+// Customer/admin/driver endpoints
+router.get(
+    '/booking/:bookingId',
+    trackingMiddleware.checkBookingAccess,
+    trackingController.getTrackingHistory
+);
+
+router.get(
+    '/booking/:bookingId/current',
+    trackingMiddleware.checkBookingAccess,
+    trackingController.getCurrentStatus
+);
+
+module.exports = router;

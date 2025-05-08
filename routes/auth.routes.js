@@ -1,59 +1,26 @@
-//Handles user authentication: user login, user registration, password reset, oken verification
-const express = require('express'); 
-const jwt = require('jsonwebtoken');
-const router = express.Router(); 
-const { signup } = require('../controllers/auth.controller');
-const User = require('../models/user.model');
+/**
+ * Handles user authentication: user login, user registration, password reset and token verification
+ * 
+ */
 
-//user registration
-router.post('/signup', signup);
+const express = require('express');
+const router = express.Router();
+const authController = require('../controllers/auth.controller');
+const authMiddleware = require('../middleware/auth.middleware');
+const rateLimit = require('express-rate-limit');
 
-//user login (replace with proper controller logic) 
-router.post('/login', (req, res) => {
-    res.send('Login successful');
-})
-
-//Authentication middlware: verifies JWT token 
-const authenticate = (req, res, next) => {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) return res.status(401).json({ message: 'Unouthorized' });
-
-    try {
-        //jwt.verify() should be provided the token and secret 
-        const decoded = jwt.verify(process.env.JWT_SECRET);
-        req.user = decoded;
-        next();
-    } catch (error) {
-        res.status(403).json({ message: 'Invalid token' });
-    }
-};
-// Authorization middleware: check if user's role is allowed
-// updated: now checks if req.user.role is included in the allowed roles array passed parameters
-const authorizeRole = (allowedRoles) => (req, res, next) => {
-    if (!allowedRoles.includes(req.user.role)) {
-        return res.status(403).json({ message: 'Access denied'});
-    }
-    next();
-};
-
-// admin dashboard: uses authenticate and authorizeRole middleware
-router.get('/admin/dashboard', authenticate, authorizeRole(['Admin']), (req, res) => {
-    res.join({ message: 'Welcome to the admin Dashboard', data: { user: ['User1', 'USer2'] } });
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, //15 mins
+    max: 5,
+    message: 'Too many login attempts from this IP, please try again after 15 minutes' 
 });
 
-// customer dashboard: accesssible by customer and admin
-router.get('/customer/dashboard', authenticate, authorizeRole(['Customer', 'Admin']), (req, res) => {
-    res.json({ message: 'Welcome to the Customer Dashboard', data: { orders: ['Order1', 'Order2'] } });
-});
+router.post('/register', authController.register);
+router.post('/login', authLimiter, authController.login);
+router.post('/refresh-token', authController.refreshToken);
+router.get('/logout', authController.logout);
+router.post('/forgot-password', authController.forgotPassword);
+router.patch('/reset-password/:token', authController.resetPassword);
+router.patch('/update-password', authMiddleware.protect, authController.updatePassword);
 
-// Example route to get all users
-router.get('/', async (req, res) => {
-    try {
-        const users = await User.find();
-        res.json(users);
-    } catch (err) {
-        res.status(500).json({ message: err.message });
-    }
-});
-
-module.exports = router;  
+module.exports = router;

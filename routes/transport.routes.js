@@ -1,19 +1,63 @@
-// handles transport related operations: gets transport details and list all transport options.
+/**
+ * @transport routes
+ */
+
 const express = require('express');
 const router = express.Router();
-const transportController = require('../controllers/transport.controller');
-const cacheMiddleware = require('../middleware/redis.cache');
+const TransportController = require('../controllers/transport.controller');
+const transportMiddleware = require('../middleware/transport.middleware');
+const authMiddleware = require('../middleware/auth.middleware');
 
-// health check route
-router.get('/health', (req, res) => {
-    res.send({ message:'Transport route is working' });
-});
+// Apply authentication to all transport routes
+router.use(authMiddleware.protect);
 
-// get all transport (with caching)
-router.get('/', cacheMiddleware('transports'), transportController.getTransports);
+// Admin-only routes
+router.post(
+    '/',
+    authMiddleware.restrictTo('admin'),
+    transportMiddleware.validateTransportCreation,
+    TransportController.createTransport
+);
 
-// get all transport by ID (with caching)
-router.get('/:id', cacheMiddleware('transport'), transportController.getTransportsById);
+router.patch(
+    '/:id',
+    authMiddleware.restrictTo('admin'),
+    transportMiddleware.checkTransportExists,
+    transportMiddleware.validateTransportUpdate,
+    TransportController.updateTransport
+);
 
+router.delete(
+    '/:id',
+    authMiddleware.restrictTo('delete'),
+    transportMiddleware.checkTransportExists,
+    TransportController.deactivateTransport
+);
 
-module.exports = router;  
+router.post(
+    '/:id/maintenace',
+    authMiddleware.restrictTo('admin'),
+    transportMiddleware.checkTransportExists,
+    transportMiddleware.validateMaintenanceRecord,
+    TransportController.addMaintenanceRecord
+);
+
+// General access routes
+router.get(
+    '/',
+    TransportController.validateCoordinates,
+);
+
+router.get(
+    '/nearby',
+    transportMiddleware.validateCoordinates,
+    TransportController.findNearbyTransports
+);
+
+router.get(
+    '/:id',
+    transportMiddleware.checkTransportExists,
+    TransportController.getTransportById
+);
+
+module.exports = router;
